@@ -6,3 +6,7 @@ outputs/
 data/processed/
 .uv-cache/
 .python/
+data/raw/*.xes
+data/raw/*.xml
+data/raw/*.xes.gz
+data/raw/*.zip

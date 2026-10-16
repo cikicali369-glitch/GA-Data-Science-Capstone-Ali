@@ -8,7 +8,7 @@ BPI data is external public process-mining data. It is not SPAR production data.
 
 ## Project structure
 
-- `data/raw/`: original dataset files (no dataset included yet).
+- `data/raw/`: local original dataset files (excluded from Git).
 - `data/processed/`: generated datasets.
 - `notebooks/`: data loading, EDA, feature engineering, modeling, and evaluation stages.
 - `src/`: reusable Python modules.
@@ -29,4 +29,11 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-The notebooks currently contain placeholders only. No EDA, feature engineering, model training, or evaluation has been performed. Add the BPI XES file to `data/raw/` before implementing data loading. Raw data is not ignored by Git; decide separately whether to version the dataset.
+## Dataset setup
+
+1. Download BPI Challenge 2015 Municipality 1 from the official BPI Challenge 2015 / 4TU Research Data source.
+2. Place `BPIC15_1.xes` in `data/raw/`.
+3. The raw dataset is intentionally excluded from Git and is not SPAR production data.
+4. Run `notebooks/01_data_loading.ipynb` first using the project `.venv`.
+
+Notebook 01 performs dataset intake and structural validation only. The remaining notebooks contain placeholders. No full EDA, target definition, feature engineering, or model training has been performed.
