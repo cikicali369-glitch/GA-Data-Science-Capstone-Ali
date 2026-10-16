@@ -1,0 +1,1 @@
+"""SPAR capstone project package."""
