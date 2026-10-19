@@ -193,6 +193,18 @@ def activity_features(snap: pd.DataFrame, codes: list[str], min_category_cases: 
     return features
 
 
+def train_vocabulary_activity_features(snap: pd.DataFrame, train_case_ids, min_share: float = ACTIVITY_MIN_CASE_SHARE,
+                                       max_share: float = ACTIVITY_MAX_CASE_SHARE) -> tuple[pd.DataFrame, list[str]]:
+    """Activity features with the code vocabulary selected on TRAINING cases only, then applied to every case.
+
+    Categorical first/latest activity codes are returned ungrouped (min_category_cases=0) so that rare-value grouping
+    can be fitted on the training data by the model's encoder instead of on the full dataset.
+    """
+    train_snap = snap[snap[CASE].isin(set(train_case_ids))]
+    codes = select_activity_codes(train_snap, min_share, max_share)
+    return activity_features(snap, codes, min_category_cases=0), codes
+
+
 def build_feature_table(df: pd.DataFrame, snapshot_days: int = SNAPSHOT_DAYS,
                         activity_codes: list[str] | None = None) -> tuple[pd.DataFrame, list[str]]:
     """Full pipeline: one row per prediction-eligible case, metadata columns first, then predictors."""
