@@ -117,6 +117,56 @@ def bootstrap_interval(y_true, probability, metric, n_resamples: int = 1000, see
     return float(np.percentile(values, 2.5)), float(np.percentile(values, 97.5))
 
 
+# Choices frozen in notebooks/04_modeling.ipynb before the test period was scored. Do not change them after the fact.
+LOCKED_VALIDATION_START = "2013-01-01"
+LOCKED_TEST_START = "2014-01-01"
+LOCKED_LOGISTIC_CLASS_WEIGHT = "balanced"
+LOCKED_FINAL_MODEL = "random forest"
+LOCKED_PROBABILITY_THRESHOLD = 0.25
+
+
+def reproduce_locked_experiment(table: pd.DataFrame, snap: pd.DataFrame) -> dict:
+    """Re-run the frozen Day-14 experiment exactly as locked in 04_modeling (no choice is re-made).
+
+    ``table``: the 14-day feature CSV indexed by case_id. ``snap``: raw 14-day snapshot events (src.features.snapshot_events).
+    Returns the split, labels, train-only threshold and vocabulary, fitted models and predicted probabilities.
+    """
+    from . import features as F
+
+    timezone = F.LOCAL_TIMEZONE
+    split = chronological_split(table["case_start"], pd.Timestamp(LOCKED_VALIDATION_START, tz=timezone),
+                               pd.Timestamp(LOCKED_TEST_START, tz=timezone))
+    threshold_days = train_threshold(table["event_log_days"], split)
+    labels = long_running_label(table["event_log_days"], threshold_days)
+
+    activity_table, codes = F.train_vocabulary_activity_features(snap, table.index[split == TRAIN])
+    model_table = table[F.CORE_NUMERIC_FEATURES].join(activity_table, how="left")
+    binary = [F.ACTIVITY_FLAG_PREFIX + c for c in codes]
+    categorical = list(F.CATEGORICAL_FEATURES)
+    numeric = list(F.CORE_NUMERIC_FEATURES)
+    constant = constant_columns(model_table.loc[split == TRAIN, numeric + binary + categorical])
+    numeric = [c for c in numeric if c not in constant]
+    binary = [c for c in binary if c not in constant]
+    features = numeric + categorical + binary
+
+    train_mask = split == TRAIN
+    models = {
+        "logistic (balanced)": logistic_pipeline(numeric, categorical, binary, class_weight=LOCKED_LOGISTIC_CLASS_WEIGHT),
+        "random forest": random_forest_pipeline(numeric, categorical, binary),
+    }
+    for model in models.values():
+        model.fit(model_table.loc[train_mask, features], labels[train_mask])
+    probability = {
+        (name, part): model.predict_proba(model_table.loc[split == part, features])[:, 1]
+        for name, model in models.items() for part in (VALIDATION, TEST)
+    }
+    return {
+        "split": split, "labels": labels, "train_p75_days": threshold_days, "activity_codes": codes,
+        "dropped_constant": constant, "features": features, "model_table": model_table,
+        "models": models, "probability": probability,
+    }
+
+
 def logistic_coefficients(pipeline: Pipeline) -> pd.Series:
     """Coefficients on the preprocessed scale (numeric: per standard deviation; one-hot/flags: presence)."""
     names = pipeline.named_steps["preprocess"].get_feature_names_out()

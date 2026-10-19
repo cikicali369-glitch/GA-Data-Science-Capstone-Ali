@@ -34,6 +34,30 @@ python -m venv .venv
 1. Download BPI Challenge 2015 Municipality 1 from the official BPI Challenge 2015 / 4TU Research Data source.
 2. Place `BPIC15_1.xes` in `data/raw/`.
 3. The raw dataset is intentionally excluded from Git and is not SPAR production data.
-4. Run `notebooks/01_data_loading.ipynb` first using the project `.venv`.
+4. Run the notebooks in order with the project `.venv`.
 
-Notebook 01 performs dataset intake and structural validation only. The remaining notebooks contain placeholders. No full EDA, target definition, feature engineering, or model training has been performed.
+## Notebooks
+
+| Notebook | Purpose |
+|---|---|
+| `01_data_loading` | Read-only XES intake and structural validation |
+| `02_eda` | Exploratory analysis of durations, activities, variants, resources and fields |
+| `02b_target_definition` | Outcome cohort, duration definition, long-running rule, prediction point |
+| `03_feature_engineering` | Leakage-safe Day-14 snapshot features → `data/processed/case_features_14d.csv` |
+| `04_modeling` | Chronological train/validation/test evaluation of logistic regression and random forest |
+| `05_evaluation` | Reproduces the locked result; interpretation, lessons and SPAR implications |
+
+Run the tests with:
+
+```powershell
+.\.venv\Scripts\python.exe tests\test_features.py
+.\.venv\Scripts\python.exe tests\test_models.py
+```
+
+## Abstract
+
+**Early Prediction of Long-Running Administrative Cases: A Proof of Concept for SPAR**
+
+Administrative cases that take much longer than usual are costly, and an early warning could help staff decide where to look first. This capstone tests whether information available 14 days after a case starts can predict whether it will become long-running, defined as exceeding the 75th percentile of training-period durations (104.6 days). Using the public BPI Challenge 2015 event log of one Dutch municipality (1,199 permit cases, 52,217 events), we reconstructed cases, built leakage-safe point-in-time features from the first 14 days, and trained a logistic-regression baseline and a random forest. Evaluation was strictly chronological: the threshold, activity vocabulary and preprocessing were learned on 2010–2012 cases, model choices were made on 2013, and 2014 was scored once. A weak signal appeared in 2013, but on the 2014 test period neither model ranked cases better than chance (random forest ROC-AUC 0.49; PR-AUC 0.14 at a prevalence of 0.14). The pipeline worked; the early information did not generalise. For SPAR, the lesson is that predictive analytics depends on capturing rich, well-defined, time-stamped process context from the start, and on evaluating it honestly before relying on any risk score.
+
+"Long-running" is a relative duration label, not a legal delay or a performance judgement. Results are associations, not causes, and do not transfer to SPAR without local data.
