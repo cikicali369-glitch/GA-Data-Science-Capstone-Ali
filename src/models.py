@@ -1,5 +1,7 @@
 """Time-aware modelling helpers: chronological split, train-only label, pipelines and evaluation.
 
+Also holds the secondary Day-14 duration-regression helpers (bottom of the file).
+
 Every fitted quantity (label threshold, preprocessing, model, probability threshold) is learned on the training
 split or chosen on the validation split. The test split is only scored.
 """
@@ -7,11 +9,11 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (accuracy_score, average_precision_score, confusion_matrix, f1_score,
-                             precision_score, recall_score, roc_auc_score)
+from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.metrics import (accuracy_score, average_precision_score, confusion_matrix, f1_score, mean_absolute_error,
+                             mean_squared_error, precision_score, r2_score, recall_score, roc_auc_score)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -176,3 +178,110 @@ def logistic_coefficients(pipeline: Pipeline) -> pd.Series:
 def forest_importances(pipeline: Pipeline) -> pd.Series:
     names = pipeline.named_steps["preprocess"].get_feature_names_out()
     return pd.Series(pipeline.named_steps["model"].feature_importances_, index=names, name="importance")
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Secondary regression extension (notebooks/06_regression.ipynb): predict total event-log duration in days from the
+# same Day-14 inputs, split and train-only vocabulary as the locked classification experiment. Nothing above changes.
+# ---------------------------------------------------------------------------------------------------------------------
+REGRESSION_TARGET = "event_log_days"
+# Columns that describe the outcome or the case's future. None of them may ever be a predictor.
+OUTCOME_COLUMNS = ["case_end", "event_log_days", "remaining_days_after_snapshot", "long_running",
+                   "requestComplete", "caseStatus", "last_phase"]
+# Exact algebraic identities among the Day-14 features (checked on the data in 06_regression):
+#   repeated_event_count_14d = event_count_14d - unique_activity_count_14d
+#   events_days_8_to_14      = event_count_14d - events_first_7_days
+# Ordinary least squares cannot separate perfectly dependent columns, so the linear models drop the derived member of
+# each pair. The prediction information is unchanged; only the coefficients become identifiable.
+LINEAR_REDUNDANT_FEATURES = ["repeated_event_count_14d", "events_days_8_to_14"]
+
+
+def regression_feature_groups(features: list[str]) -> tuple[list[str], list[str], list[str]]:
+    """Split a locked feature list into (numeric, categorical, binary) columns. Refuses any outcome column."""
+    from . import features as F
+
+    leaked = [c for c in features if c in OUTCOME_COLUMNS or c in F.METADATA_COLUMNS]
+    if leaked:
+        raise ValueError(f"outcome/metadata columns among predictors: {leaked}")
+    categorical = [c for c in features if c in F.CATEGORICAL_FEATURES]
+    binary = [c for c in features if c.startswith(F.ACTIVITY_FLAG_PREFIX)]
+    numeric = [c for c in features if c not in categorical and c not in binary]
+    return numeric, categorical, binary
+
+
+def linear_preprocessor(numeric, categorical, binary) -> ColumnTransformer:
+    # drop="first": the first category of each column becomes the reference level, so one-hot columns are not
+    # collinear with the intercept. Unseen categories (handle_unknown="ignore") are encoded like the reference level.
+    return ColumnTransformer([
+        ("numeric", StandardScaler(), numeric),
+        ("categorical", OneHotEncoder(handle_unknown="ignore", min_frequency=MIN_CATEGORY_FREQUENCY, drop="first"),
+         categorical),
+        ("binary", "passthrough", binary),
+    ], verbose_feature_names_out=True)
+
+
+def _linear_columns(numeric):
+    return [c for c in numeric if c not in LINEAR_REDUNDANT_FEATURES]
+
+
+def linear_regression_pipeline(numeric, categorical, binary) -> Pipeline:
+    """Ordinary least squares on duration in days."""
+    return Pipeline([
+        ("preprocess", linear_preprocessor(_linear_columns(numeric), categorical, binary)),
+        ("model", LinearRegression()),
+    ])
+
+
+def log_linear_regression_pipeline(numeric, categorical, binary) -> TransformedTargetRegressor:
+    """Least squares on log1p(days); predictions are transformed back with expm1, so they are in days again."""
+    return TransformedTargetRegressor(regressor=linear_regression_pipeline(numeric, categorical, binary),
+                                      func=np.log1p, inverse_func=np.expm1, check_inverse=True)
+
+
+def random_forest_regressor_pipeline(numeric, categorical, binary) -> Pipeline:
+    # Same modest fixed configuration as the classification forest; no hyperparameter search.
+    return Pipeline([
+        ("preprocess", build_preprocessor(numeric, categorical, binary, scale_numeric=False)),
+        ("model", RandomForestRegressor(n_estimators=500, min_samples_leaf=5, max_features="sqrt",
+                                        n_jobs=-1, random_state=RANDOM_STATE)),
+    ])
+
+
+def regression_metrics(y_true, y_pred) -> dict:
+    """MAE, RMSE and R² in days, plus the mean residual (actual - predicted; > 0 means durations were underpredicted)."""
+    y_true, y_pred = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)
+    return {
+        "cases": len(y_true),
+        "mae": mean_absolute_error(y_true, y_pred),
+        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
+        "r2": r2_score(y_true, y_pred),
+        "mean_residual": float(np.mean(y_true - y_pred)),
+    }
+
+
+def constant_baseline(y_train, statistic: str = "median") -> float:
+    """Naive historical prediction learned from TRAINING outcomes only: their median (or mean)."""
+    if statistic not in ("median", "mean"):
+        raise ValueError("statistic must be 'median' or 'mean'")
+    return float(getattr(pd.Series(y_train, dtype=float), statistic)())
+
+
+def bootstrap_mae_gain(y_true, y_model, y_baseline, n_resamples: int = 1000, seed: int = RANDOM_STATE):
+    """95% percentile bootstrap interval of MAE(baseline) - MAE(model), resampling cases (> 0 = model better)."""
+    y_true, y_model, y_baseline = (np.asarray(v, dtype=float) for v in (y_true, y_model, y_baseline))
+    rng = np.random.default_rng(seed)
+    gains = []
+    for _ in range(n_resamples):
+        index = rng.integers(0, len(y_true), len(y_true))
+        gains.append(np.mean(np.abs(y_true[index] - y_baseline[index])) - np.mean(np.abs(y_true[index] - y_model[index])))
+    return float(np.percentile(gains, 2.5)), float(np.percentile(gains, 97.5))
+
+
+def linear_regression_coefficients(model) -> pd.Series:
+    """Coefficients mapped to preprocessed feature names (numeric: per standard deviation; one-hot/flags: presence).
+
+    Accepts a fitted linear_regression_pipeline or log_linear_regression_pipeline (log-scale coefficients).
+    """
+    pipeline = model.regressor_ if isinstance(model, TransformedTargetRegressor) else model
+    names = pipeline.named_steps["preprocess"].get_feature_names_out()
+    return pd.Series(pipeline.named_steps["model"].coef_, index=names, name="coefficient")
