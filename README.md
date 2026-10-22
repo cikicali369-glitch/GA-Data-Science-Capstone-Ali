@@ -2,19 +2,26 @@
 
 A Data Science proof of concept for SPAR using **BPI Challenge 2015 Municipality 1**.
 
-The main goal is to predict whether an active administrative case is at risk of becoming long-running.
-
 BPI data is external public process-mining data. It is not SPAR production data.
 
-**GA Capstone Part 2 (Dataset + Data Collection) submission:** [`notebooks/Capstone_Part2_Dataset_EDA.ipynb`](notebooks/Capstone_Part2_Dataset_EDA.ipynb), with the data dictionary also saved as [`data/data_dictionary.csv`](data/data_dictionary.csv).
+## General Assembly Capstone — Part 2 Submission
 
-## Project structure
+| | |
+|---|---|
+| **Primary submission notebook** | [`notebooks/Capstone_Part2_Dataset_EDA.ipynb`](notebooks/Capstone_Part2_Dataset_EDA.ipynb) |
+| **Data dictionary** | [`data/data_dictionary.csv`](data/data_dictionary.csv) (all 29 columns; also shown in the notebook) |
+| **Dataset** | BPI Challenge 2015 — Municipality 1 |
+| **Official source** | DOI [`10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17`](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17) (4TU.ResearchData) |
 
-- `data/raw/`: local original dataset files (excluded from Git).
-- `data/processed/`: generated datasets.
-- `notebooks/`: data loading, EDA, feature engineering, modeling, and evaluation stages.
-- `src/`: reusable Python modules.
-- `outputs/figures/` and `outputs/tables/`: generated results.
+The Part 2 submission covers **dataset sourcing, data access, munging, cleaning, the data dictionary and a preliminary
+EDA**. It contains no predictive model: predictive modelling belongs to later project stages (see
+[Later Project Development](#later-project-development)).
+
+## Dataset setup
+
+1. Download BPI Challenge 2015 Municipality 1 from the official BPI Challenge 2015 / 4TU Research Data source: DOI [10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17) (B. van Dongen, Eindhoven University of Technology, 2015; 4TU General Terms of Use).
+2. Place `BPIC15_1.xes` in `data/raw/` (details in [`data/raw/README.md`](data/raw/README.md)).
+3. The raw dataset is intentionally excluded from Git (it is a large third-party file, available from the DOI above) and is not SPAR production data.
 
 ## Environment
 
@@ -31,14 +38,25 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-## Dataset setup
+## Project structure
 
-1. Download BPI Challenge 2015 Municipality 1 from the official BPI Challenge 2015 / 4TU Research Data source: DOI [10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17) (B. van Dongen, Eindhoven University of Technology, 2015; 4TU General Terms of Use).
-2. Place `BPIC15_1.xes` in `data/raw/`.
-3. The raw dataset is intentionally excluded from Git (it is a large third-party file, available from the DOI above) and is not SPAR production data.
-4. Run the notebooks in order with the project `.venv`.
+- `data/raw/`: local original dataset files (excluded from Git).
+- `data/data_dictionary.csv`: data dictionary of the raw event log (Part 2).
+- `data/processed/`: generated datasets (later stages).
+- `notebooks/`: the Part 2 submission notebook, plus the research notebooks of later stages.
+- `src/`: reusable Python modules (later stages).
+- `outputs/figures/` and `outputs/tables/`: generated results.
 
-## Notebooks
+---
+
+## Later Project Development
+
+*This section describes work beyond the Part 2 submission.* The main goal of the full project is to predict whether
+an active administrative case is at risk of becoming long-running.
+
+### Research notebooks
+
+Run them in order with the project `.venv`.
 
 | Notebook | Purpose |
 |---|---|
@@ -58,7 +76,7 @@ Run the tests with:
 .\.venv\Scripts\python.exe tests\test_regression.py
 ```
 
-## Abstract
+### Abstract
 
 **Early Prediction of Long-Running Administrative Cases: A Proof of Concept for SPAR**
 

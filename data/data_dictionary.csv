@@ -6,8 +6,8 @@ action_code,Activity code of the event.,str,0.0,397,"Equal to concept:name on ev
 activityNameEN,English description of the activity.,str,0.0,289,289 names; several codes share a name.
 planned,Exact meaning not fully documented; likely the planned date of the step (inference).,"datetime64[us, UTC]",11.5,38879,Datetime (UTC).
 time:timestamp,When the event happened (XES standard timestamp).,"datetime64[us, UTC]",0.0,24142,"Stored in UTC. Many events are recorded at midnight, i.e. date-level precision."
-monitoringResource,A second resource ID per event. Exact source-system meaning is not fully documented; possibly the resource monitoring the step (inference).,str,0.0,26,Anonymised ID; 26 values.
-org:resource,Resource that recorded/performed the event (XES standard resource).,str,0.0,23,Anonymised numeric ID stored as text; 23 values. Not used to evaluate individuals.
+monitoringResource,A second resource ID per event. Exact source-system meaning is not fully documented; possibly the resource monitoring the step (inference).,str,0.0,26,Numeric identifier (no names); 26 values.
+org:resource,Resource that recorded/performed the event (XES standard resource).,str,0.0,23,Numeric identifier stored as text (no names); 23 values. Not used to evaluate individuals.
 activityNameNL,Dutch description of the activity.,str,0.0,289,"Same information as activityNameEN, in Dutch."
 concept:name,"Activity code of the event (XES standard activity name), e.g. 01_HOOFD_010.",str,0.0,398,398 codes. Main activity field used in this project.
 lifecycle:transition,Lifecycle state of the event (XES standard).,str,0.0,1,Always 'complete' in this log.
@@ -17,7 +17,7 @@ case:SUMleges,Total fee of the application ('leges' is Dutch for fees) (inferenc
 case:last_phase,"Last phase the case reached, as a Dutch label (e.g. 'Beschikking verzonden' ≈ 'decision sent').",str,0.0,27,27 values; describes the end of the case.
 case:case_type,Type of case.,str,0.0,1,Only one value (557669) for every case.
 case:concept:name,Case ID: identifies the permit application the event belongs to.,str,0.0,1199,"Numeric ID stored as text; 1,199 cases."
-case:Responsible_actor,Exact meaning not fully documented; likely the responsible person/unit (inference).,str,0.0,20,Anonymised ID; 20 values.
+case:Responsible_actor,Exact meaning not fully documented; likely the responsible person/unit (inference).,str,0.0,20,Numeric identifier (no names); 20 values.
 case:parts,"Permit components requested, comma-separated Dutch labels (e.g. 'Bouw' ≈ building).",str,0.0,88,Case-level; 88 different combinations.
 case:termName,"Name of a legal time limit linked to the case (Dutch label, e.g. 'Termijn bezwaar en beroep').",str,26.3,13,Case-level; 13 values; often missing.
 case:endDatePlanned,Exact meaning not fully documented; likely a planned end date (inference).,"datetime64[us, UTC]",86.4,86,Datetime (UTC); case-level; mostly missing.
