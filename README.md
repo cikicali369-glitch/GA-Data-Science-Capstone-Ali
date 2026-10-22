@@ -6,6 +6,8 @@ The main goal is to predict whether an active administrative case is at risk of 
 
 BPI data is external public process-mining data. It is not SPAR production data.
 
+**GA Capstone Part 2 (Dataset + Data Collection) submission:** [`notebooks/Capstone_Part2_Dataset_EDA.ipynb`](notebooks/Capstone_Part2_Dataset_EDA.ipynb), with the data dictionary also saved as [`data/data_dictionary.csv`](data/data_dictionary.csv).
+
 ## Project structure
 
 - `data/raw/`: local original dataset files (excluded from Git).
@@ -31,9 +33,9 @@ python -m venv .venv
 
 ## Dataset setup
 
-1. Download BPI Challenge 2015 Municipality 1 from the official BPI Challenge 2015 / 4TU Research Data source.
+1. Download BPI Challenge 2015 Municipality 1 from the official BPI Challenge 2015 / 4TU Research Data source: DOI [10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17) (B. van Dongen, Eindhoven University of Technology, 2015; 4TU General Terms of Use).
 2. Place `BPIC15_1.xes` in `data/raw/`.
-3. The raw dataset is intentionally excluded from Git and is not SPAR production data.
+3. The raw dataset is intentionally excluded from Git (it is a large third-party file, available from the DOI above) and is not SPAR production data.
 4. Run the notebooks in order with the project `.venv`.
 
 ## Notebooks
