@@ -1,87 +1,76 @@
-# Early Prediction of Long-Running Administrative Cases
+# GA Data Science Capstone — Part 2
 
-A Data Science proof of concept for SPAR using **BPI Challenge 2015 Municipality 1**.
+**Project question:** Can early information from an administrative process help us understand which cases are likely to take longer than usual?
 
-BPI data is external public process-mining data. It is not SPAR production data.
+## Part 2
 
-## General Assembly Capstone — Part 2 Submission
+Dataset + Data Collection + Preliminary EDA.
 
-| | |
+In this part I find, load and inspect the dataset, check its quality and do a first exploratory analysis. No predictive model is built yet.
+
+## Dataset
+
+**BPI Challenge 2015 — Municipality 1**: building-permit applications from one Dutch municipality, recorded as an event log (October 2010 – July 2015).
+
+- Creator: Boudewijn van Dongen (Eindhoven University of Technology)
+- Published: 2015, on 4TU.ResearchData
+- DOI: [10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17)
+- Terms of use: 4TU General Terms of Use ([doi.org/10.4121/resource:terms_of_use](https://doi.org/10.4121/resource:terms_of_use)), as listed in the dataset's DOI record
+- Format: XES event log (`BPIC15_1.xes`)
+
+This is a public research dataset. It is not SPAR data and not confidential government data. The analysed event log uses resource identifiers rather than employee names.
+
+**The raw XES dataset is not stored in GitHub.** Download it through the DOI link and place it locally at:
+
+```
+data/raw/BPIC15_1.xes
+```
+
+## Repository Contents
+
+| File | Description |
 |---|---|
-| **Primary submission notebook** | [`notebooks/Capstone_Part2_Dataset_EDA.ipynb`](notebooks/Capstone_Part2_Dataset_EDA.ipynb) |
-| **Data dictionary** | [`data/data_dictionary.csv`](data/data_dictionary.csv) (all 29 columns; also shown in the notebook) |
-| **Dataset** | BPI Challenge 2015 — Municipality 1 |
-| **Official source** | DOI [`10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17`](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17) (4TU.ResearchData) |
+| `README.md` | This file |
+| `requirements.txt` | Python packages used |
+| `data/data_dictionary.csv` | Data dictionary for all 29 columns |
+| `data/raw/README.md` | Where to get the raw dataset and where to put it |
+| `notebooks/01_EDA.ipynb` | Part 2 notebook: dataset, data quality and preliminary EDA |
 
-The Part 2 submission covers **dataset sourcing, data access, munging, cleaning, the data dictionary and a preliminary
-EDA**. It contains no predictive model: predictive modelling belongs to later project stages (see
-[Later Project Development](#later-project-development)).
+## Main Dataset Facts
 
-## Dataset setup
+- 1,199 cases
+- 52,217 events
+- 29 columns
 
-1. Download BPI Challenge 2015 Municipality 1 from the official BPI Challenge 2015 / 4TU Research Data source: DOI [10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17) (B. van Dongen, Eindhoven University of Technology, 2015; 4TU General Terms of Use).
-2. Place `BPIC15_1.xes` in `data/raw/` (details in [`data/raw/README.md`](data/raw/README.md)).
-3. The raw dataset is intentionally excluded from Git (it is a large third-party file, available from the DOI above) and is not SPAR production data.
+## Notebook
 
-## Environment
+`notebooks/01_EDA.ipynb` covers:
 
-On Windows PowerShell, activate the existing environment with:
+- loading the data: XES → PM4Py → pandas DataFrame;
+- data inspection (what one row means, dataset overview, data types);
+- the data dictionary;
+- missing-value checks;
+- duplicate checks;
+- basic EDA: events per case, case duration and the most common activities.
 
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
+## Main Part 2 Conclusion
 
-To recreate the environment with Python installed:
+The dataset is suitable for continuing the project: it has case IDs, activities, timestamps, resource identifiers and enough information to calculate case duration. The key columns are complete and there are no duplicate rows.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-```
+Its predictive usefulness has not been tested yet. This will be evaluated in later Capstone stages.
 
-## Project structure
+## Running the Notebook
 
-- `data/raw/`: local original dataset files (excluded from Git).
-- `data/data_dictionary.csv`: data dictionary of the raw event log (Part 2).
-- `data/processed/`: generated datasets (later stages).
-- `notebooks/`: the Part 2 submission notebook, plus the research notebooks of later stages.
-- `src/`: reusable Python modules (later stages).
-- `outputs/figures/` and `outputs/tables/`: generated results.
+1. Create an environment and install the packages:
 
----
+   ```
+   python -m venv .venv
+   .venv\Scripts\python.exe -m pip install -r requirements.txt
+   ```
 
-## Later Project Development
+2. Download `BPIC15_1.xes` (see Dataset) and save it as `data/raw/BPIC15_1.xes`.
+3. Open `notebooks/01_EDA.ipynb` in Jupyter or VS Code with this environment and run all cells.
 
-*This section describes work beyond the Part 2 submission.* The main goal of the full project is to predict whether
-an active administrative case is at risk of becoming long-running.
+## Data Source
 
-### Research notebooks
-
-Run them in order with the project `.venv`.
-
-| Notebook | Purpose |
-|---|---|
-| `01_data_loading` | Read-only XES intake and structural validation |
-| `02_eda` | Exploratory analysis of durations, activities, variants, resources and fields |
-| `02b_target_definition` | Outcome cohort, duration definition, long-running rule, prediction point |
-| `03_feature_engineering` | Leakage-safe Day-14 snapshot features → `data/processed/case_features_14d.csv` |
-| `04_modeling` | Chronological train/validation/test evaluation of logistic regression and random forest |
-| `05_evaluation` | Reproduces the locked result; interpretation, lessons and SPAR implications |
-| `06_regression` | Secondary extension: predicts total duration in days from the same Day-14 inputs and split |
-
-Run the tests with:
-
-```powershell
-.\.venv\Scripts\python.exe tests\test_features.py
-.\.venv\Scripts\python.exe tests\test_models.py
-.\.venv\Scripts\python.exe tests\test_regression.py
-```
-
-### Abstract
-
-**Early Prediction of Long-Running Administrative Cases: A Proof of Concept for SPAR**
-
-Administrative cases that take much longer than usual are costly, and an early warning could help staff decide where to look first. This capstone tests whether information available 14 days after a case starts can predict whether it will become long-running, defined as exceeding the 75th percentile of training-period durations (104.6 days). Using the public BPI Challenge 2015 event log of one Dutch municipality (1,199 permit cases, 52,217 events), we reconstructed cases, built leakage-safe point-in-time features from the first 14 days, and trained a logistic-regression baseline and a random forest. Evaluation was strictly chronological: the threshold, activity vocabulary and preprocessing were learned on 2010–2012 cases, model choices were made on 2013, and 2014 was scored once. A weak signal appeared in 2013, but on the 2014 test period neither model ranked cases better than chance (random forest ROC-AUC 0.49; PR-AUC 0.14 at a prevalence of 0.14). The pipeline worked; the early information did not generalise. For SPAR, the lesson is that predictive analytics depends on capturing rich, well-defined, time-stamped process context from the start, and on evaluating it honestly before relying on any risk score.
-
-**Regression extension (secondary).** `06_regression` asks how many days a case will last, using the same 917 cases, Day-14 features and chronological split. No model beat the naive forecast "training median, 64 days" on the 2014 test period (test MAE: baseline 31 days; log-target linear regression 62; random forest 70; linear regression 119). The diagnostics show the early process changed after 2012. The classification result above is unchanged.
-
-"Long-running" is a relative duration label, not a legal delay or a performance judgement. Results are associations, not causes, and do not transfer to SPAR without local data.
+van Dongen, B. (2015). *BPI Challenge 2015 Municipality 1*. Eindhoven University of Technology. 4TU.ResearchData. https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17
