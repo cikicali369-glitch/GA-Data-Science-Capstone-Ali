@@ -20,7 +20,7 @@ In this part I find, load and inspect the dataset, check its quality and do a fi
 
 This is a public research dataset. It is not SPAR data and not confidential government data. The analysed event log uses resource identifiers rather than employee names.
 
-**The raw XES dataset is not stored in GitHub.** Download it through the DOI link and place it locally at:
+**The dataset is stored in this repository using Git LFS.** Git LFS is required when cloning to retrieve the dataset at:
 
 ```
 data/raw/BPIC15_1.xes
@@ -68,7 +68,7 @@ Its predictive usefulness has not been tested yet. This will be evaluated in lat
    .venv\Scripts\python.exe -m pip install -r requirements.txt
    ```
 
-2. Download `BPIC15_1.xes` (see Dataset) and save it as `data/raw/BPIC15_1.xes`.
+2. With Git LFS installed, run `git lfs pull` from the repository root to retrieve `data/raw/BPIC15_1.xes`.
 3. Open `notebooks/01_EDA.ipynb` in Jupyter or VS Code with this environment and run all cells.
 
 ## Data Source
