@@ -1,4 +1,5 @@
-# GA Data Science Capstone — Early Warning for Long Administrative Cases
+# GA Data Science Capstone
+## Early Warning for Long Administrative Cases
 
 **Project question:** Can early information from an administrative process help us identify which cases are likely to
 take longer than usual?
