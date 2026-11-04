@@ -11,7 +11,7 @@ org:resource,Resource that recorded/performed the event (XES standard resource).
 activityNameNL,Dutch description of the activity.,str,0.0,289,"Same information as activityNameEN, in Dutch."
 concept:name,"Activity code of the event (XES standard activity name), e.g. 01_HOOFD_010.",str,0.0,398,398 codes. Main activity field used in this project.
 lifecycle:transition,Lifecycle state of the event (XES standard).,str,0.0,1,Always 'complete' in this log.
-case:endDate,"End date of the case: the date the case was closed, when recorded.","datetime64[us, UTC]",14.8,478,Datetime (UTC); case-level. Missing for cases without a recorded end.
+case:endDate,"Recorded end date of the case. Exact meaning is not fully documented; it often differs from the last recorded event (see 01_EDA, section 9.3).","datetime64[us, UTC]",14.8,478,"Datetime (UTC); case-level. Missing for cases without a recorded end date. Cases with a value are this project's historically completed cases."
 case:caseStatus,Status code of the case.,str,0.0,3,Codes G / O / T; their meaning is not documented.
 case:SUMleges,Total fee of the application ('leges' is Dutch for fees) (inference from the name).,float64,16.5,613,Number (float); case-level.
 case:last_phase,"Last phase the case reached, as a Dutch label (e.g. 'Beschikking verzonden' ≈ 'decision sent').",str,0.0,27,27 values; describes the end of the case.
