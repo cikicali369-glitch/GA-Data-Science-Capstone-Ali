@@ -1,30 +1,19 @@
-# Raw dataset
+# Untouched original data
 
-- **Dataset:** BPI Challenge 2015 Municipality 1
-- **File:** `BPIC15_1.xes`
-- **Source:** official BPI Challenge 2015 / 4TU Research Data
-- **DOI / download:** [10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17) (creator: Boudewijn van Dongen; publisher: Eindhoven University of Technology, 2015)
-- **Terms of use:** 4TU General Terms of Use ([doi.org/10.4121/resource:terms_of_use](https://doi.org/10.4121/resource:terms_of_use)), as listed in the dataset's DOI record
-- **Purpose:** external public process-mining dataset used for a General Assembly Data Science capstone project. It is not SPAR production data.
-- **Expected SHA-256 of `BPIC15_1.xes`:** `7591f70d4a4d536ead76a56c2fa493fbe22bf2ec7e06c8ddd29da79bd666e516`
+This folder holds the original input file. It is never edited in place.
 
-## How the file is stored
+| File | Provider/source URL | Obtained on | Collection period | License/terms | Checksum |
+|---|---|---|---|---|---|
+| `BPIC15_1.xes` | Boudewijn van Dongen, Eindhoven University of Technology, via 4TU.ResearchData: https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17 | Download date not recorded; added to this repository with Git LFS on 2026-10-27 | Source: "approximately four years"; events in the file: October 2010 – July 2015 | [4TU General Terms of Use](https://doi.org/10.4121/resource:terms_of_use) (citation required) | SHA-256 `7591f70d4a4d536ead76a56c2fa493fbe22bf2ec7e06c8ddd29da79bd666e516`; MD5 `6c8a04d566eef571cf0aaf7b6f70310b` (matches the MD5 published by 4TU) |
 
-`BPIC15_1.xes` (about 41 MB) is committed to this repository with **Git LFS** (Large File Storage), unchanged from the
-source. The rule for this is in `.gitattributes`, and `.gitignore` makes an exception for this one file. Other raw files
-(`.xml`, `.xes.gz`, `.zip` and any other `.xes`) are not committed.
+**Size:** 41,227,060 bytes. This is larger than the course's 25 MB limit; the instructor accepted this file as an
+exception, and it is stored with **Git LFS**. That acceptance concerns the file size only; it is not permission from the
+dataset owner to redistribute the data.
 
-## How to get it
+**Citation:** van Dongen, Boudewijn (2015): BPI Challenge 2015 Municipality 1. Version 1. 4TU.ResearchData. dataset.
+https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17
 
-1. **With Git LFS** (recommended): install Git LFS (<https://git-lfs.com>), run `git lfs install` once, then clone the
-   repository, or run `git lfs pull` inside an existing clone. Without Git LFS, the file in your copy is only a small text
-   pointer, and PM4Py cannot read it.
-2. **From the source:** download the Municipality 1 log (`BPIC15_1.xes`) through the DOI link above, extract it if it is
-   compressed, and place it here as `data/raw/BPIC15_1.xes` without changing its contents.
+This is a public research dataset from one Dutch municipality. It is not SPAR data. It contains resource identifiers
+(numbers), not employee names.
 
-In both cases you can check the file with its SHA-256 hash:
-
-- Windows: `certutil -hashfile data\raw\BPIC15_1.xes SHA256`
-- macOS / Linux: `shasum -a 256 data/raw/BPIC15_1.xes`
-
-The result must match the expected hash above.
+How to get the file (Git LFS or the source) and how to check it is explained in [`../README.md`](../README.md).

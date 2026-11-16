@@ -3,7 +3,8 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 outputs/
-data/processed/
+data/processed/*
+!data/processed/README.md
 .uv-cache/
 .python/
 archive/
@@ -13,3 +14,7 @@ data/raw/*.xes.gz
 data/raw/*.zip
 !data/raw/BPIC15_1.xes
 /models/*.pkl
+
+.env
+.env.*
+.DS_Store

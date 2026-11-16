@@ -1,390 +1,150 @@
-# GA Data Science Capstone
-
-## Early Warning for Long Administrative Cases
-
-**Author:** Ali Čikić · General Assembly – Data Science Bootcamp
-
-**Project question:** Can early information from an administrative process help identify cases likely to have a longer
-**recorded activity span**?
-
-**Short answer:** At day 30, a simple Logistic Regression shows a **modest ranking signal** (ROC-AUC about 0.66–0.70),
-but its warnings are unstable between test sets and the evidence is **not sufficient for operational use**. The tested
-day-14 approaches showed only weak signal. Follow-up experiments (section 7) gave slightly higher exploratory scores
-for an extended Logistic Regression (model C) and a tuned Random Forest, without changing this conclusion.
-
-## 1. Why I Chose This Problem
-
-In an administrative process, such as handling a building-permit application, some cases are finished in a few weeks
-and others take many months. If the long cases could be recognised **early**, while they are still running, someone could
-look at them sooner. That practical idea is the starting point of my project: what is already known about a case after
-a few events, or after 14 or 30 days, and does it say anything about how long the case will run?
-
-**Connection to SPAR.** The motivation comes from SPAR, where the same kind of question could later be asked about SPAR's
-own historical cases. SPAR's data was **not** used in this project. I used a public event log from **one Dutch
-municipality** instead, so this project demonstrates a **method** that might later be evaluated on SPAR's historical data.
-The model is **not** validated for SPAR or Montenegro, and its numbers cannot be transferred to them.
-
-## 2. The Data
-
-**BPI Challenge 2015 — Municipality 1** (van Dongen, 2015, 4TU.ResearchData,
-[DOI 10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17](https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17)):
-building-permit applications from one Dutch municipality, recorded as an **event log**.
-
-- **One event** (one row) is one recorded step in a case, for example "register submission date request", with a case
-  ID, an activity code, a timestamp and a resource ID (a number, not a person's name).
-- **One case** is one permit application. It consists of many events (typically about 44, between 2 and 101).
-- **Scope:** 52,217 events, 1,199 cases, 29 columns, events from October 2010 to July 2015 (2010 and 2015 are partial years).
-- **Quality checks** ([01_EDA](notebooks/01_EDA.ipynb)): the four key columns (case, activity, timestamp, resource) are
-  complete and there are no duplicate rows. 14 of the 29 columns have missing values, mostly optional fields. I removed no
-  rows or columns and filled in no values. Every column is described in
-  [`data/data_dictionary.csv`](data/data_dictionary.csv); fields whose meaning is not documented are marked as such.
-- **Exclusion:** I only use the **956 cases with a recorded end date** (`case:endDate`), the *historically completed
-  cases*. The other 243 cases may have continued after the data was collected. A recorded end date does not guarantee
-  that every step of the case is in the log.
-
-This is a public research dataset, not SPAR data and not confidential government data.
-
-## 3. What I Predict
-
-**Recorded activity span** = days from the **first** to the **last** recorded event of a case (`duration_days` in the code).
-
-This is what the event log shows. It is **not** a verified administrative completion time, a legal deadline, a measure of
-lateness or a measure of anyone's performance. The last recorded event can be a later step such as publication or
-archiving, and it often disagrees with the recorded end date: for 713 of the 956 completed cases the last event comes
-**after** `case:endDate`, for 170 it comes **before**, and only 73 match. The meaning of `case:endDate` is not documented
-in the sources I used, so I only use it to select the completed cases.
-
-**Long case** = a recorded activity span of **more than 63 days** (472 of 956 completed cases).
-
-- **How I chose 63 days:** it is the **median** span of all 956 completed cases in the EDA, so about half of the cases are long.
-- **Limitations of this choice:** it is an **exploratory, data-derived** threshold, not an external deadline. I chose it
-  while looking at **all** completed cases, including the cases that later became test cases, and not from training cases
-  only. So none of the later evaluations is completely independent of this exploration.
-
-## 4. Metrics and Baselines in Simple Words
-
-- **Baseline:** the simplest possible "model". For regression: predict one constant number of days for every case (the
-  mean or the median of the training cases). For classification: the **majority baseline** predicts the more common class
-  for every case.
-- **MAE:** the average number of days a prediction is wrong. On the training cases, the constant with the smallest MAE is
-  the median, so the **median baseline** is the fairer constant to beat on MAE.
-- **R²:** the share of the variation explained (0 = no better than predicting the mean).
-- **Precision:** of the cases a model flags as long, the share that really are long ("how often a warning is correct").
-- **Recall:** of the really long cases, the share the model flags ("how many long cases are found").
-- **ROC-AUC:** how well the model **ranks** long cases above not-long cases, using its predicted probabilities.
-  0.50 = no better than chance, 1.00 = perfect.
-
-**Why high recall can be misleading.** At day 30 most eligible cases are long, so the majority baseline flags **every**
-case as long. It finds all long cases (recall 1.00) and gets a high F1, but it cannot tell any two cases apart
-(ROC-AUC 0.50). A model that flags nearly every case looks good on recall without being useful. That is why I compare
-every model with its own baseline and use ROC-AUC as the main measure, together with how many cases are flagged.
-
-## 5. The Investigation, Step by Step
-
-| Step | Notebook | Cases (train / test) | Main verified result |
-|---|---|---|---|
-| Whole-case regression | 02–05 | 764 / 192 | MAE: median baseline 64.42 → Linear Regression 59.01 → Gradient Boosting 51.19 days |
-| First five events | 06 | 763 / 191 | Accuracy 0.55 vs 0.51 (baseline); recall 0.28 |
-| Day-14 counts | 07 | 733 / 184 | Accuracy 0.49 vs 0.52 (baseline); ROC-AUC 0.53 |
-| Day-14 counts + activities | 08 | 733 / 184 | ROC-AUC 0.59; accuracy 0.58 |
-| Day-14 regression | 09 | 733 / 184 | MAE: median baseline 70.75; models 76.90–81.27 |
-| Day-30 classification | 10 | 677 / 161 | Logistic Regression ROC-AUC 0.702 (CV), 0.659 (test) |
-| Temporal check | 11 | 617 / 168 | Logistic Regression ROC-AUC 0.678; recall 0.55 |
-| Ensemble comparison | 12 | as 10 and 11 | No consistent gain over Logistic Regression |
-
-The follow-up experiments (notebooks 14–21) are summarised in section 7.
-
-**Step 1 — Whole-case regression (notebooks 02–05, supporting exercises).** I started with the regression models from
-the course: Linear Regression, Decision Tree, Random Forest and Gradient Boosting, predicting the span in days from three
-case-level features (number of events, unique activities, unique resources). On one random 80/20 split, Linear
-Regression (MAE 59.01, R² 0.26) beat the median baseline (64.42) and the mean baseline (71.98). One Decision Tree was
-almost the same (58.73) and fitted the training cases much better than the test cases (R² 0.52 vs 0.27). Random Forest
-(52.00, R² 0.44) and Gradient Boosting (51.19, R² 0.49) were better on this split. **But these features describe the
-finished case**: the total number of events is only known when the case has ended. So this is a regression exercise, not
-an early-warning model, and I moved on to features that exist while a case is still running.
-
-**Step 2 — First five events (notebook 06, exploratory).** I used only the first five events of each case. Logistic
-Regression reached accuracy 0.55 against 0.51 for the baseline, and found only 28% of the long cases. Long cases had a
-higher *mean* time to reach event 5 (15.67 vs 6.37 days) but almost the same *median* (5.38 vs 4.49), so the difference
-comes from a minority of slow starts. There was also a problem: **21 cases already needed more than 63 days to reach their
-fifth event**, so they were long before the prediction was made, and a prediction for them is not an advance warning.
-Because the prediction moment differs so much between cases, I moved to a **fixed point in time**.
-
-**Step 3 — Day-14 count features (notebook 07).** I used seven counts of what happened in the first 14 days (events,
-unique activities, resources, recent inactivity and similar). Logistic Regression did **not** beat the baseline: accuracy
-0.49 vs 0.52. Its recall (0.63) looked better than in step 2 only because it flagged many cases (119 of 184), and the
-baseline that flags everything had even higher recall and F1 (1.00 and 0.68). Counting events was not enough, so I next
-asked *which* activities had happened.
-
-**Step 4 — Day-14 activity indicators (notebook 08).** I added 0/1 indicators for the 15 most common activity codes
-recorded by day 14, selected on the training cases only. ROC-AUC rose from 0.53 to 0.59 and accuracy to 0.58: a small,
-exploratory gain on a test set that I had already looked at in notebook 07. The signal was still weak.
-
-**Step 5 — Day-14 regression (notebook 09, supporting).** I also tried to predict the span in days from the same day-14
-features. No model beat the median baseline (MAE 70.75 vs 76.90–81.27 days). The tested day-14 approaches therefore had
-**weak predictive signal**, and I tried a later snapshot.
-
-**Step 6 — Day-30 classification with cross-validation (notebook 10).** Using the same kinds of features at day 30,
-Logistic Regression reached a mean ROC-AUC of **0.702** in 5-fold cross-validation on the training cases (between 0.667
-and 0.755 in the five folds) and **0.659** on the test cases. This is clearer than at day 14, but it is **not a perfectly
-controlled comparison**: at day 30 the eligible cases change (838 instead of 917), the share of long cases rises (55.7% of
-training and 59.0% of test cases), and the features cover 30 days instead of 14.
-
-**Step 7 — Temporal check (notebook 11).** In practice a model is trained on older cases and used on newer ones, so I
-trained on cases before 2013-10-25 and tested on the 168 newest cases. Logistic Regression ranked the newer cases about as
-well (ROC-AUC **0.678**), but it flagged fewer cases and found only 55% of the long ones.
-
-**Step 8 — Ensemble comparison (notebook 12).** Finally I compared Random Forest and Gradient Boosting with Logistic
-Regression on exactly the same features and splits. The ensembles were better on the random test only, not in
-cross-validation or on the temporal test.
-
-## 6. Final Results (Day 30)
-
-| ROC-AUC | Cross-validation mean | Random test (161 cases) | Temporal test (168 cases) |
-|---|---|---|---|
-| Majority baseline | 0.500 | 0.500 | 0.500 |
-| Logistic Regression | 0.702 | 0.659 | 0.678 |
-| Random Forest | 0.701 | 0.745 | 0.674 |
-| Gradient Boosting | 0.684 | 0.723 | 0.624 |
-
-| Logistic Regression | Cases flagged | Precision | Recall | Share of long cases in the test group |
-|---|---|---|---|---|
-| Random test | 98 of 161 | 0.694 | 0.716 | 59.0% |
-| Temporal test | 71 of 168 | 0.775 | 0.55 | 59.5% |
-
-**Why I keep Logistic Regression as the main simple candidate.** Random Forest had the best random-test result (0.745),
-but it was practically equal to Logistic Regression in cross-validation (0.701 vs 0.702) and on the temporal test (0.674
-vs 0.678). One favourable split is not enough to show that a model is better. Random Forest's warnings also changed more
-between the tests: it flagged 118 of 161 random-test cases (recall 0.863) but only 51 of 168 temporal-test cases (recall
-0.43). When results are similar, I prefer the simpler model that I can explain. Section 7 shows that tuning
-(notebook 17) later improved Random Forest: it then ranked cases about as well as Logistic Regression model C, but
-not clearly better.
-
-## 7. Follow-Up Experiments in Charts
-
-After the main investigation I tested recommendations from Hank Butler in notebooks 14–20. The charts below summarise the
-verified results; every number comes from the executed notebooks. The test sets had already been used before, so these
-follow-ups are exploratory as well.
-
-### 7.1 Recorded activity span (EDA)
-
-![Histogram of the recorded activity span of the 956 completed cases on a logarithmic axis, with a dashed line at 63 days](images/01_recorded_activity_span.png)
-
-*Recorded activity span of the 956 historically completed cases, on a logarithmic x-axis. The dashed line is the
-63-day median, the exploratory long-case threshold. Source: [01_EDA](notebooks/01_EDA.ipynb).*
-
-### 7.2 Whole-case regression (supporting exercise)
-
-![Bar chart of the test MAE in days for the median baseline, Linear Regression, Random Forest, Gradient Boosting and VotingRegressor](images/02_whole_case_regression_mae.png)
-
-*Mean absolute error on the 192 test cases: median baseline 64.42, Linear Regression 59.01, Random Forest 52.00,
-Gradient Boosting 51.19 and VotingRegressor 51.16 days. The VotingRegressor
-([notebook 18](notebooks/18_voting_regressor_review.ipynb)), which averages the three models, did not meaningfully
-improve MAE (0.03 days) and had a worse RMSE than Gradient Boosting (110.87 vs 104.63 days). These models use
-whole-case features, so they are **not** early-warning models. The values were calculated with one reusable metrics
-function and saved to `results/regression_model_comparison.csv` ([notebook 20](notebooks/20_regression_metrics_review.ipynb)).*
-
-### 7.3 Day-30 classification: the original models
-
-![Bar chart of day-30 ROC-AUC for Logistic Regression, Random Forest and Gradient Boosting in cross-validation, on the random test and on the temporal test](images/03_day30_model_comparison.png)
-
-*ROC-AUC of the original day-30 models in cross-validation, on the random test (161 cases) and on the temporal test
-(168 newer cases). Logistic Regression shows a modest ranking signal (0.702 / 0.659 / 0.678); the ensembles were better
-on the random test only. Source: [notebook 12](notebooks/12_day30_model_comparison_review.ipynb).*
-
-### 7.4 Day-30: new activity features
-
-![Bar chart of day-30 ROC-AUC for five Logistic Regression feature sets: original, activity groups, original plus groups, PCA and text features](images/04_day30_feature_experiments.png)
-
-*All five variants use the same Logistic Regression and the same splits. The values and the code for this chart are
-in [notebook 21](notebooks/21_readme_figures.ipynb), which reproduces this image byte-for-byte without training any
-model.*
-
-- **A. Original** (7 counts + 15 activity indicators): cross-validation 0.702.
-- **C. Original + activity groups** ([notebook 14](notebooks/14_day30_activity_groups_review.ipynb)): a **small**
-  cross-validation improvement (0.710), and higher on both tests (0.708 and 0.705). The gain is smaller than the variation
-  between folds (standard deviation 0.033 for A). Groups instead of individual codes (**B**) were slightly lower (0.694).
-- **D. PCA of all activity codes, 10 components** ([notebook 15](notebooks/15_day30_activity_pca_review.ipynb)):
-  **no clear cross-validation improvement** (0.709); the tests were higher (0.721 and 0.729), but the tests were not used
-  for the choice.
-- **E. C + 30 TF-IDF words from the activity descriptions** ([notebook 16](notebooks/16_day30_nlp_review.ipynb)):
-  **no cross-validation improvement** (0.702), and lower on the temporal test (0.657). The descriptions are mostly fixed
-  labels of the same activity codes.
-
-### 7.5 Day-30: tuning the ensembles
-
-![Bar chart of day-30 ROC-AUC for Random Forest and Gradient Boosting before and after tuning, with Logistic Regression model C as reference](images/05_day30_hyperparameter_tuning.png)
-
-*Small fixed grids chosen by cross-validation ([notebook 17](notebooks/17_day30_hyperparameter_tuning_review.ipynb)).
-Random Forest improved slightly (cross-validation 0.701 → 0.720, temporal test 0.674 → 0.709); Gradient Boosting improved
-less (0.684 → 0.710; temporal test 0.636). The gains are smaller than the variation between folds, and the best score of a
-grid is slightly optimistic. The tuned Random Forest ranks cases about as well as model C, but it varies more between
-folds (standard deviation 0.035 vs 0.017) and finds fewer of the long newer cases (recall 0.42 vs 0.50). It uses
-different features from C, so this is not a comparison of tuning alone.*
-
-### 7.6 What the follow-ups change
-
-- **Main candidate:** Logistic Regression stays the main, interpretable model. Model C (original features + activity
-  groups) and the PCA variant are practically tied in cross-validation (0.710 vs 0.709); I prefer C because each of its
-  features can be explained, while PCA components cannot. The tuned Random Forest improved the exploratory scores and
-  is a competitive alternative, but this does not establish clear superiority: the differences are small and the
-  feature sets differ.
-- **Optimistic best scores:** many variants (A–E and 20 tuning settings) were compared on the same cross-validation
-  folds, so the best of them looks slightly better than it would on truly new cases.
-- **Workflow:** saving the trained model with pickle ([notebook 19](notebooks/19_model_persistence_review.ipynb)) gave
-  exactly the same predictions after reloading, and one reusable metrics function with a CSV output (notebook 20) makes
-  the regression evaluation consistent. These steps improve the **workflow**, not the predictive performance.
-- **Conclusion unchanged:** the day-30 signal is modest, the warnings change between test sets, and the models are
-  **not ready for operational use**.
-
-## 8. How Careful the Evaluation Is
-
-- **Feature timing:** the day-14 and day-30 features use only events timestamped on or before the cutoff. A leakage check
-  replaces all later activities and resources with fake values and confirms that the features do not change. This assumes
-  that the timestamps show when the information was available.
-- **Retrospective cohort:** a case is included at day N if its last recorded event is after first event + N days (day 14:
-  917 cases, day 30: 838). This uses the last event, which is only known afterwards, and it does not prove that the case
-  was administratively open at day N: 19 (day 14) and 39 (day 30) of these cases already have a recorded end date by then.
-  The leakage check tests the feature code only; it does not remove this cohort-selection bias, and a real system would
-  need to know which cases are really open.
-- **Training data only:** activity indicators are selected on training cases only, and again inside every
-  cross-validation training fold; the scaler is fitted on training data only (inside a pipeline).
-- **Splits:** the random split from notebook 07 (733 / 184) is reused in notebooks 08–10 and 12; at day 30 it is filtered
-  to 677 / 161, never redrawn. In the temporal split, training cases must have their last event and end date before the
-  boundary (53 older cases were left out, 44 of them long), and the training and test groups do not overlap.
-- **Reused test cases:** I looked at the same test cases in several notebooks, so none of the results is an untouched
-  final test.
-- **Temporal test is not independent:** 138 of the 168 temporal-test cases were **training** cases in the earlier random
-  split (notebooks 07–10), and the features and settings were chosen while looking at those notebooks. The temporal
-  evaluation is therefore a **chronological robustness check**, not an independent final evaluation.
-- **Redundant features:** two of the seven count features are exact combinations of others (repeated activities = events
-  − unique activities; events in the second interval = all events − events in the first interval). I kept them for
-  continuity and do not interpret their coefficients separately.
-- **Date-level timestamps:** 45.9% of the events are recorded exactly at local midnight, and 30,433 of the 52,217
-  events share a timestamp with another event of the same case. So the order of same-day events is not reliable (this
-  matters most for the first-five-event features), and the day-14 and day-30 cutoffs are only as precise as one day
-  ([01_EDA](notebooks/01_EDA.ipynb), section 14).
-- **Completed-case selection:** the 243 cases without a recorded end date are excluded, and 89 of them started in
-  2014. So the newest cases, possibly especially long ones, are under-represented among the completed cases that form
-  the temporal test.
-
-## 9. What the Findings Support and What They Do Not
-
-**They support:**
-- At day 30, the tested features contain a modest ranking signal for long recorded activity spans in this municipality's
-  historical cases, seen in cross-validation, on the random test and on newer cases.
-- Logistic Regression is a reasonable simple candidate. The untuned ensembles did not show a consistent improvement;
-  after tuning (notebook 17), Random Forest improved the exploratory scores and ranks cases about as well as model C,
-  but this does not establish clear superiority (section 7).
-
-**They do not establish:**
-- that the model would be useful in practice: at the default threshold it misses many long cases (45 of 100 on the
-  temporal test), and its warnings changed between test sets;
-- that early information is generally uninformative: the weak day-14 results apply to the **tested** features and models only;
-- why cases take long: coefficients and feature importances are not causes;
-- anything about legal delays, lateness or staff performance;
-- any performance for SPAR, Montenegro or another municipality.
-
-**What a future SPAR pilot would need:**
-- SPAR's own historical cases with reliable timestamps for when each step was recorded;
-- a reliable way to know which cases are really open at the prediction moment, instead of a retrospective rule;
-- a target agreed with the people who handle the cases, for example a documented deadline, with the threshold chosen on
-  training data only;
-- training on older cases and a final test on newer cases that is kept untouched until the very end;
-- a check of how many warnings staff can actually handle, and which threshold gives a useful balance of precision and recall.
-
-## 10. Notebooks
-
-**Main reading order**
-
-1. [13_project_summary](notebooks/13_project_summary.ipynb) — short overview (Markdown only)
-2. [01_EDA](notebooks/01_EDA.ipynb) — data, quality checks, target and threshold
-3. [06_early_warning_features_review](notebooks/06_early_warning_features_review.ipynb) — first five events
-4. [07_14_day_early_warning_review](notebooks/07_14_day_early_warning_review.ipynb) — day-14 counts (creates the random split)
-5. [08_14_day_activity_features_review](notebooks/08_14_day_activity_features_review.ipynb) — day-14 activity indicators
-6. [10_day30_early_warning_review](notebooks/10_day30_early_warning_review.ipynb) — day 30 with cross-validation
-7. [11_day30_temporal_validation_review](notebooks/11_day30_temporal_validation_review.ipynb) — older vs newer cases
-8. [12_day30_model_comparison_review](notebooks/12_day30_model_comparison_review.ipynb) — ensembles and final charts
-
-**Supporting experiments**
-
-- [02_linear_regression_review](notebooks/02_linear_regression_review.ipynb),
-  [03_decision_tree_review](notebooks/03_decision_tree_review.ipynb),
-  [04_random_forest_review](notebooks/04_random_forest_review.ipynb),
-  [05_gradient_boosting_review](notebooks/05_gradient_boosting_review.ipynb) — whole-case regression exercises
-- [09_day14_regression_review](notebooks/09_day14_regression_review.ipynb) — day-14 regression
-
-**Follow-up experiments (Hank Butler's recommendations, section 7)**
-
-- [14_day30_activity_groups_review](notebooks/14_day30_activity_groups_review.ipynb) — activity codes grouped into categories
-- [15_day30_activity_pca_review](notebooks/15_day30_activity_pca_review.ipynb) — one-hot encoding and PCA of the activity codes
-- [16_day30_nlp_review](notebooks/16_day30_nlp_review.ipynb) — TF-IDF text features from the activity descriptions
-- [17_day30_hyperparameter_tuning_review](notebooks/17_day30_hyperparameter_tuning_review.ipynb) — tuning Random Forest and Gradient Boosting
-- [18_voting_regressor_review](notebooks/18_voting_regressor_review.ipynb) — VotingRegressor (whole-case regression)
-- [19_model_persistence_review](notebooks/19_model_persistence_review.ipynb) — saving and reloading a trained model
-- [20_regression_metrics_review](notebooks/20_regression_metrics_review.ipynb) — one reusable metrics function and a CSV of results
-- [21_readme_figures](notebooks/21_readme_figures.ipynb) — reproduces the README chart `images/04_day30_feature_experiments.png`
-
-Notebooks 19 and 20 write a model file to `models/` and a CSV file to `results/`; they never overwrite a different
-existing file.
-
-Every notebook loads the raw data itself and can be run on its own.
-
-## 11. Setup and Running the Notebooks
-
-**Tested with Python 3.14.7 on Windows 11.** Other Python versions and operating systems were not tested.
-
-**1. Get the project and the data.** The raw file `data/raw/BPIC15_1.xes` (about 41 MB) is stored in this repository
-with **Git LFS** (configured in `.gitattributes`).
-
-- Install Git LFS (<https://git-lfs.com>) and run `git lfs install` once, then clone the repository. Git LFS downloads
-  the data file automatically; in a clone made without Git LFS, run `git lfs pull`.
-- Without Git LFS the file is only a small text pointer. In that case, download `BPIC15_1.xes` from the DOI link above
-  and place it at `data/raw/BPIC15_1.xes`. [`data/raw/README.md`](data/raw/README.md) explains this and how to check the
-  file's SHA-256 hash.
-
-**2. Create an environment and install the required packages** (from the project folder):
-
-```
-python -m venv .venv
-.venv\Scripts\activate            (Windows)
-source .venv/bin/activate         (macOS / Linux)
+# GA Data Science Capstone: Early Warning for Long Administrative Cases
+
+Can information recorded during the first 30 days help identify administrative cases likely to have a longer recorded
+activity span?
+
+## The problem
+
+In a Dutch municipality's building-permit records, some cases have recorded activity spans of only a few weeks and others
+of many months; spotting the long ones early could help staff look at them sooner. The **recorded activity span** is the
+time from the first to the last recorded event of a case: it is not a verified completion date and not a legal deadline.
+A case counts as "long" when this span is more than 63 days, the median recorded activity span among the cases with a
+recorded end date. The question was motivated by SPAR, where it could become a future research direction, but this
+project uses only historical public Dutch municipal data, **not SPAR data**, and it does not claim causes or offer a tool
+ready for real use.
+
+## Key result
+
+Using the activities recorded in the first 30 days, the final model (**Logistic Regression C**) separates long cases from
+shorter ones clearly better than the baseline. Its **ROC-AUC is 0.710 in cross-validation, 0.708 on a random test set and
+0.705 on newer cases** (a temporal test made only of later cases), compared with **0.500 for the baseline** that
+predicts "long" for every case. ROC-AUC measures how well a model ranks long cases above shorter ones: 0.5 is no better
+than chance and 1.0 is perfect. On the random test set the model found 73 of the 95 long cases (recall 0.768), and 73 of
+the 100 cases it flagged were really long (precision 0.730).
+
+![ROC-AUC of the day-30 models in cross-validation, on the random test and on newer cases; all trained candidate models exceed the baseline](docs/figures/model_comparison_roc_auc.png)
+
+A tuned Random Forest had the highest cross-validation score (0.720), and a Logistic Regression on 10 PCA components had
+the highest score on newer cases (0.729). Logistic Regression C was chosen because it was close behind in
+cross-validation and each of its features can be explained. The choice used a "one-standard-error" rule of thumb (keep
+models whose cross-validation score is within one standard error of the best, threshold 0.705, then take the simplest).
+This rule was written down after the exploratory experiments and does not prove that the models are statistically
+equal. The temporal test is a historical check of how the model holds up on later cases, not an untouched independent
+validation: its cases had been used earlier in the research. The signal is modest: on newer cases the model still
+misses half of the long cases.
+
+## The data
+
+- **Source:** BPI Challenge 2015 Municipality 1, by Boudewijn van Dongen (Eindhoven University of Technology), published
+  on 4TU.ResearchData: <https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17>
+- **Size:** one event-log file, `BPIC15_1.xes` (41,227,060 bytes), with 52,217 recorded events for 1,199 applications
+  and 29 columns.
+- **Collection period:** the source describes roughly four years of data; the events in the file run from October 2010
+  to July 2015.
+- **Terms:** 4TU General Terms of Use; the dataset must be cited. This is not a Creative Commons licence, and the code
+  license of this repository does not apply to the data.
+- **In plain words:** a log of the steps (activities) recorded for each building-permit application at one Dutch
+  municipality, with dates and anonymous resource numbers instead of employee names.
+
+The original file is stored with Git LFS and never edited. How to obtain and check it is explained in
+[data/README.md](data/README.md).
+
+## How to navigate this repo
+
+Start here, then read the [EDA notebook](notebooks/01_eda.ipynb), followed by the
+[modelling notebook](notebooks/02_modelling.ipynb). Data instructions are in [data/](data/README.md); figures and result
+tables are in [docs/](docs/README.md).
+
+The project was developed in 21 earlier notebooks (linear regression, tree models, day-14 and day-30 early warning,
+temporal validation and follow-up experiments). Their questions, results and links to the original versions are
+summarised in [docs/research_history.md](docs/research_history.md).
+
+## How to reproduce
+
+You need Python 3.12 or newer, Git and **Git LFS** (the original data file is stored with Git LFS; see
+[data/README.md](data/README.md)). The final submission branch is `tidy_project`.
+
+**What has been tested:** on Windows 11 with Python 3.14.7, a new environment installed from `requirements.txt` without
+conflicts, `jupyter notebook` started, and both notebooks ran from start to finish in fresh kernels (with
+`jupyter nbconvert --to notebook --execute`), twice, with identical results. The pinned versions also resolve for Linux
+with Python 3.12 and 3.13 (checked with pip only, not run). They do not install on Python 3.11 or older.
+
+```bash
+git lfs install
+git clone --branch tidy_project https://github.com/cikicali369-glitch/GA-Data-Science-Capstone-Ali.git
+cd GA-Data-Science-Capstone-Ali
+git lfs pull
 python -m pip install -r requirements.txt
+jupyter notebook
 ```
 
-`requirements.txt` contains the packages the notebooks use (pandas, matplotlib, PM4Py, scikit-learn) and `ipykernel`,
-which lets an editor run the notebooks with this environment. It does **not** include a notebook editor.
+Run `notebooks/01_eda.ipynb` first, then `notebooks/02_modelling.ipynb`, each from a fresh session. The EDA notebook
+creates `data/processed/bpic15_events.csv.gz`, which the modelling notebook loads; this file is not stored in the
+repository, so 01 must be run before 02.
 
-**3. Open the notebooks with one of these:**
+In Colab, first clone this repository, enter its folder, and install requirements as shown above (use `!git lfs install`,
+`!git clone`, `%cd`, `!git lfs pull` and `%pip install` in a code cell). Obtain data as explained in
+[data/README.md](data/README.md). Opening a badge alone does not copy the repository or its data. Each Colab session
+starts empty, so in the session for the modelling notebook, run the EDA notebook first (for example with
+`!jupyter nbconvert --to notebook --execute notebooks/01_eda.ipynb`) to create the processed file. Colab comes with
+other versions of some packages already installed, so it may ask you to restart the session after `%pip install`. The
+Colab route has **not been tested**.
 
-- **VS Code** with its Jupyter extension: open the project folder, open a notebook, select the `.venv` environment as the
-  kernel and choose *Run All*. Nothing else needs to be installed into the environment.
-- **JupyterLab** (optional): install it into the same environment with `python -m pip install jupyterlab==4.6.5`, start
-  `jupyter lab` from the project folder and use *Run → Run All Cells*.
+[![Open EDA in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cikicali369-glitch/GA-Data-Science-Capstone-Ali/blob/tidy_project/notebooks/01_eda.ipynb)
+[![Open modelling in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cikicali369-glitch/GA-Data-Science-Capstone-Ali/blob/tidy_project/notebooks/02_modelling.ipynb)
 
-The data path is found from the project folder, so a notebook works whether Jupyter starts in the project folder or in
-the `notebooks` folder. In the clean test environment each notebook ran in about 3 to 50 seconds (most in under 20 seconds; notebooks 14,
-15 and 17 took longer), mostly to read the XES file and, in notebook 17, to fit 115 models. When PM4Py is
-imported it prints a short welcome and licence message; this is normal.
+## Repository structure
 
-## 12. Repository Contents
+Files and folders stored in Git:
 
-| Path | Description |
-|---|---|
-| `README.md` | This file |
-| `requirements.txt` | Required Python packages |
-| `data/raw/BPIC15_1.xes` | Raw event log (Git LFS, unchanged from the source) |
-| `data/raw/README.md` | Source, terms of use, download and hash check for the raw data |
-| `data/data_dictionary.csv` | Description of all 29 columns |
-| `notebooks/` | Notebooks 01–21 listed above |
-| `images/` | Charts shown in this README: charts 01, 02, 03 and 05 are copied from the outputs of notebooks 01, 20, 12 and 17; chart 04 is drawn by notebook 21 |
-| `results/regression_model_comparison.csv` | Regression comparison table saved by notebook 20 |
-| `models/` | Created locally by notebook 19; the saved model file is git-ignored and not part of the repository |
+```text
+README.md                  Public project story
+LICENSE                    Code license; data has separate terms
+requirements.txt           Packages and verified versions
+.gitignore                 Files to keep out of Git
+.gitattributes             Tells Git LFS to store the large original data file
+data/
+  README.md                Acquisition and file-size policy
+  data_dictionary.csv      Meaning of all 29 columns
+  raw/                     Untouched original (BPIC15_1.xes, Git LFS) and provenance
+  processed/README.md      Description of the generated data file
+notebooks/
+  01_eda.ipynb             Explore, document decisions, export
+  02_modelling.ipynb       Compare methods and explain results
+docs/
+  README.md                List of figures and result tables
+  research_history.md      How the research developed (21 earlier notebooks)
+  figures/                 Figures saved by the two notebooks
+  results/                 Result tables (CSV)
+```
 
-## 13. Data Source and Terms
+Created locally when the notebooks run (git-ignored, not in the repository):
 
-van Dongen, B. (2015). *BPI Challenge 2015 Municipality 1*. Eindhoven University of Technology. 4TU.ResearchData.
-https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17
+```text
+data/processed/bpic15_events.csv.gz    Event table exported by 01_eda.ipynb, loaded by 02_modelling.ipynb
+models/logistic_regression_c.pkl       Saved final model from 02_modelling.ipynb
+```
 
-Terms of use: 4TU General Terms of Use ([doi.org/10.4121/resource:terms_of_use](https://doi.org/10.4121/resource:terms_of_use)),
-as listed in the dataset's DOI record.
+## Author & credits
+
+- **Author:** Ali Čikić, General Assembly Data Science Bootcamp (capstone project).
+- **Instructor:** the General Assembly instructor provided the project template and README structure used here.
+- **Review:** Hank Butler gave review recommendations; the nine recommendations and how each was followed are listed in
+  [docs/research_history.md](docs/research_history.md).
+- **Data provider:** Boudewijn van Dongen, Eindhoven University of Technology, via 4TU.ResearchData (BPI Challenge 2015
+  Municipality 1, <https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17>).
+- **Software:** pandas, NumPy, matplotlib, scikit-learn and Jupyter; PM4Py is used to read the event log (PM4Py is
+  licensed under AGPL-3.0). No pretrained models or code from other projects are reused.
+
+## License
+
+The code and documentation in this repository are released under the [MIT License](LICENSE), Copyright (c) 2026 Ali
+Čikić, General Assembly Data Science Bootcamp.
+
+The MIT License does not cover the data. The dataset is published under the 4TU General Terms of Use and must be cited
+as: van Dongen, Boudewijn (2015): BPI Challenge 2015 Municipality 1. Version 1. 4TU.ResearchData. dataset.
+<https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17>. The dataset's [General Terms of Use](https://doi.org/10.4121/resource:terms_of_use), Article 4,
+allow non-commercial reuse and redistribution with source attribution. Any subsequent redistribution must retain
+the acknowledgment of Boudewijn van Dongen and the dataset citation above. Article 3 requires publication details
+to be provided to 4TU.ResearchData. The processed file is generated locally and kept out of Git. No pretrained models are used,
+and the saved model file is not published. Third-party packages keep their own licenses.
