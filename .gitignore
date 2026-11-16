@@ -12,3 +12,4 @@ data/raw/*.xml
 data/raw/*.xes.gz
 data/raw/*.zip
 !data/raw/BPIC15_1.xes
+/models/*.pkl

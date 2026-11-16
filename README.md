@@ -9,7 +9,8 @@
 
 **Short answer:** At day 30, a simple Logistic Regression shows a **modest ranking signal** (ROC-AUC about 0.66–0.70),
 but its warnings are unstable between test sets and the evidence is **not sufficient for operational use**. The tested
-day-14 approaches showed only weak signal.
+day-14 approaches showed only weak signal. Follow-up experiments (section 7) gave slightly higher exploratory scores
+for an extended Logistic Regression (model C) and a tuned Random Forest, without changing this conclusion.
 
 ## 1. Why I Chose This Problem
 
@@ -91,6 +92,8 @@ every model with its own baseline and use ROC-AUC as the main measure, together 
 | Temporal check | 11 | 617 / 168 | Logistic Regression ROC-AUC 0.678; recall 0.55 |
 | Ensemble comparison | 12 | as 10 and 11 | No consistent gain over Logistic Regression |
 
+The follow-up experiments (notebooks 14–21) are summarised in section 7.
+
 **Step 1 — Whole-case regression (notebooks 02–05, supporting exercises).** I started with the regression models from
 the course: Linear Regression, Decision Tree, Random Forest and Gradient Boosting, predicting the span in days from three
 case-level features (number of events, unique activities, unique resources). On one random 80/20 split, Linear
@@ -153,9 +156,88 @@ cross-validation or on the temporal test.
 but it was practically equal to Logistic Regression in cross-validation (0.701 vs 0.702) and on the temporal test (0.674
 vs 0.678). One favourable split is not enough to show that a model is better. Random Forest's warnings also changed more
 between the tests: it flagged 118 of 161 random-test cases (recall 0.863) but only 51 of 168 temporal-test cases (recall
-0.43). When results are similar, I prefer the simpler model that I can explain.
+0.43). When results are similar, I prefer the simpler model that I can explain. Section 7 shows that tuning
+(notebook 17) later improved Random Forest: it then ranked cases about as well as Logistic Regression model C, but
+not clearly better.
 
-## 7. How Careful the Evaluation Is
+## 7. Follow-Up Experiments in Charts
+
+After the main investigation I tested recommendations from Hank Butler in notebooks 14–20. The charts below summarise the
+verified results; every number comes from the executed notebooks. The test sets had already been used before, so these
+follow-ups are exploratory as well.
+
+### 7.1 Recorded activity span (EDA)
+
+![Histogram of the recorded activity span of the 956 completed cases on a logarithmic axis, with a dashed line at 63 days](images/01_recorded_activity_span.png)
+
+*Recorded activity span of the 956 historically completed cases, on a logarithmic x-axis. The dashed line is the
+63-day median, the exploratory long-case threshold. Source: [01_EDA](notebooks/01_EDA.ipynb).*
+
+### 7.2 Whole-case regression (supporting exercise)
+
+![Bar chart of the test MAE in days for the median baseline, Linear Regression, Random Forest, Gradient Boosting and VotingRegressor](images/02_whole_case_regression_mae.png)
+
+*Mean absolute error on the 192 test cases: median baseline 64.42, Linear Regression 59.01, Random Forest 52.00,
+Gradient Boosting 51.19 and VotingRegressor 51.16 days. The VotingRegressor
+([notebook 18](notebooks/18_voting_regressor_review.ipynb)), which averages the three models, did not meaningfully
+improve MAE (0.03 days) and had a worse RMSE than Gradient Boosting (110.87 vs 104.63 days). These models use
+whole-case features, so they are **not** early-warning models. The values were calculated with one reusable metrics
+function and saved to `results/regression_model_comparison.csv` ([notebook 20](notebooks/20_regression_metrics_review.ipynb)).*
+
+### 7.3 Day-30 classification: the original models
+
+![Bar chart of day-30 ROC-AUC for Logistic Regression, Random Forest and Gradient Boosting in cross-validation, on the random test and on the temporal test](images/03_day30_model_comparison.png)
+
+*ROC-AUC of the original day-30 models in cross-validation, on the random test (161 cases) and on the temporal test
+(168 newer cases). Logistic Regression shows a modest ranking signal (0.702 / 0.659 / 0.678); the ensembles were better
+on the random test only. Source: [notebook 12](notebooks/12_day30_model_comparison_review.ipynb).*
+
+### 7.4 Day-30: new activity features
+
+![Bar chart of day-30 ROC-AUC for five Logistic Regression feature sets: original, activity groups, original plus groups, PCA and text features](images/04_day30_feature_experiments.png)
+
+*All five variants use the same Logistic Regression and the same splits. The values and the code for this chart are
+in [notebook 21](notebooks/21_readme_figures.ipynb), which reproduces this image byte-for-byte without training any
+model.*
+
+- **A. Original** (7 counts + 15 activity indicators): cross-validation 0.702.
+- **C. Original + activity groups** ([notebook 14](notebooks/14_day30_activity_groups_review.ipynb)): a **small**
+  cross-validation improvement (0.710), and higher on both tests (0.708 and 0.705). The gain is smaller than the variation
+  between folds (standard deviation 0.033 for A). Groups instead of individual codes (**B**) were slightly lower (0.694).
+- **D. PCA of all activity codes, 10 components** ([notebook 15](notebooks/15_day30_activity_pca_review.ipynb)):
+  **no clear cross-validation improvement** (0.709); the tests were higher (0.721 and 0.729), but the tests were not used
+  for the choice.
+- **E. C + 30 TF-IDF words from the activity descriptions** ([notebook 16](notebooks/16_day30_nlp_review.ipynb)):
+  **no cross-validation improvement** (0.702), and lower on the temporal test (0.657). The descriptions are mostly fixed
+  labels of the same activity codes.
+
+### 7.5 Day-30: tuning the ensembles
+
+![Bar chart of day-30 ROC-AUC for Random Forest and Gradient Boosting before and after tuning, with Logistic Regression model C as reference](images/05_day30_hyperparameter_tuning.png)
+
+*Small fixed grids chosen by cross-validation ([notebook 17](notebooks/17_day30_hyperparameter_tuning_review.ipynb)).
+Random Forest improved slightly (cross-validation 0.701 → 0.720, temporal test 0.674 → 0.709); Gradient Boosting improved
+less (0.684 → 0.710; temporal test 0.636). The gains are smaller than the variation between folds, and the best score of a
+grid is slightly optimistic. The tuned Random Forest ranks cases about as well as model C, but it varies more between
+folds (standard deviation 0.035 vs 0.017) and finds fewer of the long newer cases (recall 0.42 vs 0.50). It uses
+different features from C, so this is not a comparison of tuning alone.*
+
+### 7.6 What the follow-ups change
+
+- **Main candidate:** Logistic Regression stays the main, interpretable model. Model C (original features + activity
+  groups) and the PCA variant are practically tied in cross-validation (0.710 vs 0.709); I prefer C because each of its
+  features can be explained, while PCA components cannot. The tuned Random Forest improved the exploratory scores and
+  is a competitive alternative, but this does not establish clear superiority: the differences are small and the
+  feature sets differ.
+- **Optimistic best scores:** many variants (A–E and 20 tuning settings) were compared on the same cross-validation
+  folds, so the best of them looks slightly better than it would on truly new cases.
+- **Workflow:** saving the trained model with pickle ([notebook 19](notebooks/19_model_persistence_review.ipynb)) gave
+  exactly the same predictions after reloading, and one reusable metrics function with a CSV output (notebook 20) makes
+  the regression evaluation consistent. These steps improve the **workflow**, not the predictive performance.
+- **Conclusion unchanged:** the day-30 signal is modest, the warnings change between test sets, and the models are
+  **not ready for operational use**.
+
+## 8. How Careful the Evaluation Is
 
 - **Feature timing:** the day-14 and day-30 features use only events timestamped on or before the cutoff. A leakage check
   replaces all later activities and resources with fake values and confirms that the features do not change. This assumes
@@ -178,13 +260,22 @@ between the tests: it flagged 118 of 161 random-test cases (recall 0.863) but on
 - **Redundant features:** two of the seven count features are exact combinations of others (repeated activities = events
   − unique activities; events in the second interval = all events − events in the first interval). I kept them for
   continuity and do not interpret their coefficients separately.
+- **Date-level timestamps:** 45.9% of the events are recorded exactly at local midnight, and 30,433 of the 52,217
+  events share a timestamp with another event of the same case. So the order of same-day events is not reliable (this
+  matters most for the first-five-event features), and the day-14 and day-30 cutoffs are only as precise as one day
+  ([01_EDA](notebooks/01_EDA.ipynb), section 14).
+- **Completed-case selection:** the 243 cases without a recorded end date are excluded, and 89 of them started in
+  2014. So the newest cases, possibly especially long ones, are under-represented among the completed cases that form
+  the temporal test.
 
-## 8. What the Findings Support and What They Do Not
+## 9. What the Findings Support and What They Do Not
 
 **They support:**
 - At day 30, the tested features contain a modest ranking signal for long recorded activity spans in this municipality's
   historical cases, seen in cross-validation, on the random test and on newer cases.
-- Logistic Regression is a reasonable simple candidate; the tested ensembles did not show a consistent improvement.
+- Logistic Regression is a reasonable simple candidate. The untuned ensembles did not show a consistent improvement;
+  after tuning (notebook 17), Random Forest improved the exploratory scores and ranks cases about as well as model C,
+  but this does not establish clear superiority (section 7).
 
 **They do not establish:**
 - that the model would be useful in practice: at the default threshold it misses many long cases (45 of 100 on the
@@ -202,7 +293,7 @@ between the tests: it flagged 118 of 161 random-test cases (recall 0.863) but on
 - training on older cases and a final test on newer cases that is kept untouched until the very end;
 - a check of how many warnings staff can actually handle, and which threshold gives a useful balance of precision and recall.
 
-## 9. Notebooks
+## 10. Notebooks
 
 **Main reading order**
 
@@ -223,9 +314,23 @@ between the tests: it flagged 118 of 161 random-test cases (recall 0.863) but on
   [05_gradient_boosting_review](notebooks/05_gradient_boosting_review.ipynb) — whole-case regression exercises
 - [09_day14_regression_review](notebooks/09_day14_regression_review.ipynb) — day-14 regression
 
+**Follow-up experiments (Hank Butler's recommendations, section 7)**
+
+- [14_day30_activity_groups_review](notebooks/14_day30_activity_groups_review.ipynb) — activity codes grouped into categories
+- [15_day30_activity_pca_review](notebooks/15_day30_activity_pca_review.ipynb) — one-hot encoding and PCA of the activity codes
+- [16_day30_nlp_review](notebooks/16_day30_nlp_review.ipynb) — TF-IDF text features from the activity descriptions
+- [17_day30_hyperparameter_tuning_review](notebooks/17_day30_hyperparameter_tuning_review.ipynb) — tuning Random Forest and Gradient Boosting
+- [18_voting_regressor_review](notebooks/18_voting_regressor_review.ipynb) — VotingRegressor (whole-case regression)
+- [19_model_persistence_review](notebooks/19_model_persistence_review.ipynb) — saving and reloading a trained model
+- [20_regression_metrics_review](notebooks/20_regression_metrics_review.ipynb) — one reusable metrics function and a CSV of results
+- [21_readme_figures](notebooks/21_readme_figures.ipynb) — reproduces the README chart `images/04_day30_feature_experiments.png`
+
+Notebooks 19 and 20 write a model file to `models/` and a CSV file to `results/`; they never overwrite a different
+existing file.
+
 Every notebook loads the raw data itself and can be run on its own.
 
-## 10. Setup and Running the Notebooks
+## 11. Setup and Running the Notebooks
 
 **Tested with Python 3.14.7 on Windows 11.** Other Python versions and operating systems were not tested.
 
@@ -258,10 +363,11 @@ which lets an editor run the notebooks with this environment. It does **not** in
   `jupyter lab` from the project folder and use *Run → Run All Cells*.
 
 The data path is found from the project folder, so a notebook works whether Jupyter starts in the project folder or in
-the `notebooks` folder. Each notebook ran in under 20 seconds on my computer, mostly to read the XES file. When PM4Py is
+the `notebooks` folder. In the clean test environment each notebook ran in about 3 to 50 seconds (most in under 20 seconds; notebooks 14,
+15 and 17 took longer), mostly to read the XES file and, in notebook 17, to fit 115 models. When PM4Py is
 imported it prints a short welcome and licence message; this is normal.
 
-## 11. Repository Contents
+## 12. Repository Contents
 
 | Path | Description |
 |---|---|
@@ -270,9 +376,12 @@ imported it prints a short welcome and licence message; this is normal.
 | `data/raw/BPIC15_1.xes` | Raw event log (Git LFS, unchanged from the source) |
 | `data/raw/README.md` | Source, terms of use, download and hash check for the raw data |
 | `data/data_dictionary.csv` | Description of all 29 columns |
-| `notebooks/` | Notebooks 01–13 listed above |
+| `notebooks/` | Notebooks 01–21 listed above |
+| `images/` | Charts shown in this README: charts 01, 02, 03 and 05 are copied from the outputs of notebooks 01, 20, 12 and 17; chart 04 is drawn by notebook 21 |
+| `results/regression_model_comparison.csv` | Regression comparison table saved by notebook 20 |
+| `models/` | Created locally by notebook 19; the saved model file is git-ignored and not part of the repository |
 
-## 12. Data Source and Terms
+## 13. Data Source and Terms
 
 van Dongen, B. (2015). *BPI Challenge 2015 Municipality 1*. Eindhoven University of Technology. 4TU.ResearchData.
 https://doi.org/10.4121/uuid:a0addfda-2044-4541-a450-fdcc9fe16d17

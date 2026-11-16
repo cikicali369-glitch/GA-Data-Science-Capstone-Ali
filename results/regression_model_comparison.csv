@@ -1,0 +1,6 @@
+Model,MAE (days),RMSE (days),R²
+Median baseline,64.4224,152.9982,-0.0837
+Linear Regression,59.0098,126.0176,0.2648
+Random Forest,52.0014,109.5974,0.4439
+Gradient Boosting,51.1918,104.6257,0.4932
+VotingRegressor,51.165,110.87,0.4309
