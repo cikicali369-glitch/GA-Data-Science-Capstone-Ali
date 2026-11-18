@@ -13,8 +13,6 @@ edited. Only `notebooks/01_eda.ipynb` writes files to `data/processed/`.
 2. Clone the repository. Git LFS downloads `data/raw/BPIC15_1.xes` automatically.
 3. In a clone made without Git LFS, the file is only a small text pointer. Run `git lfs pull` inside the repository.
 
-In Colab, run `!git lfs install` and `!git lfs pull` inside the cloned project folder before running the notebooks.
-
 **Without Git LFS:** open the DOI link, download `BPIC15_1.xes` (the Municipality 1 log), and save it unchanged as
 `data/raw/BPIC15_1.xes`. Then check it as below.
 

@@ -61,37 +61,56 @@ summarised in [docs/research_history.md](docs/research_history.md).
 
 ## How to reproduce
 
-You need Python 3.12 or newer, Git and **Git LFS** (the original data file is stored with Git LFS; see
-[data/README.md](data/README.md)). The final submission branch is `tidy_project`.
+**Supported workflow: local Jupyter Notebook.** Use the `tidy_project` branch. The verified environment is
+**Windows 11 with Python 3.14.7**, with the exact package versions in `requirements.txt`. Both notebooks were executed
+successfully from separate fresh kernels in clean environments, including an independent clone of the published branch.
+Other operating systems and Python versions have not been execution-tested; the pinned packages require Python 3.12 or newer.
 
-**What has been tested:** on Windows 11 with Python 3.14.7, a new environment installed from `requirements.txt` without
-conflicts, `jupyter notebook` started, and both notebooks ran from start to finish in fresh kernels (with
-`jupyter nbconvert --to notebook --execute`), twice, with identical results. The pinned versions also resolve for Linux
-with Python 3.12 and 3.13 (checked with pip only, not run). They do not install on Python 3.11 or older.
+### 1. Get the project and original data
 
-```bash
-git lfs install
+Install Python 3.14.7, Git and **Git LFS** first. Open PowerShell in the folder where you want the project and run:
+
+```powershell
 git clone --branch tidy_project https://github.com/cikicali369-glitch/GA-Data-Science-Capstone-Ali.git
 cd GA-Data-Science-Capstone-Ali
+git lfs install --local
 git lfs pull
-python -m pip install -r requirements.txt
-jupyter notebook
 ```
 
-Run `notebooks/01_eda.ipynb` first, then `notebooks/02_modelling.ipynb`, each from a fresh session. The EDA notebook
-creates `data/processed/bpic15_events.csv.gz`, which the modelling notebook loads; this file is not stored in the
-repository, so 01 must be run before 02.
+The last command retrieves the original `data/raw/BPIC15_1.xes` file. Acquisition alternatives, its expected size and
+checksums are in [data/README.md](data/README.md).
 
-In Colab, first clone this repository, enter its folder, and install requirements as shown above (use `!git lfs install`,
-`!git clone`, `%cd`, `!git lfs pull` and `%pip install` in a code cell). Obtain data as explained in
-[data/README.md](data/README.md). Opening a badge alone does not copy the repository or its data. Each Colab session
-starts empty, so in the session for the modelling notebook, run the EDA notebook first (for example with
-`!jupyter nbconvert --to notebook --execute notebooks/01_eda.ipynb`) to create the processed file. Colab comes with
-other versions of some packages already installed, so it may ask you to restart the session after `%pip install`. The
-Colab route has **not been tested**.
+### 2. Create the Python environment
 
-[![Open EDA in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cikicali369-glitch/GA-Data-Science-Capstone-Ali/blob/tidy_project/notebooks/01_eda.ipynb)
-[![Open modelling in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cikicali369-glitch/GA-Data-Science-Capstone-Ali/blob/tidy_project/notebooks/02_modelling.ipynb)
+Check that `python --version` reports **3.14.7**. If it selects another installed version, use the path to your
+Python 3.14.7 executable for the environment-creation command.
+
+```powershell
+python --version
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m ipykernel install --prefix .venv --name capstone --display-name "Python (Capstone)"
+.\.venv\Scripts\python.exe -m notebook
+```
+
+These commands use the environment's Python directly, so PowerShell activation is not required. The kernel registration
+makes **Python (Capstone)** available in Jupyter. Keep the terminal running and use the browser page opened by Jupyter.
+
+### 3. Run the notebooks in order
+
+1. Open `notebooks/01_eda.ipynb` and select **Python (Capstone)** as its kernel. Restart its kernel and run all cells.
+   It reads the original XES file and creates `data/processed/bpic15_events.csv.gz`, preserving all 52,217 events
+   and 29 columns; its round-trip check verifies that no data changed.
+2. After EDA finishes, open `notebooks/02_modelling.ipynb` in the **same project checkout** with a separate
+   **Python (Capstone)** kernel. Restart that kernel and run all cells. It loads the processed CSV from disk,
+   independently of EDA's in-memory variables.
+3. Check that all notebook assertions pass, including the 10 fingerprints, six future-event checks and 138 numerical
+   reference checks. Figures and result tables are written to `docs/figures/` and `docs/results/`.
+
+The processed CSV and saved model are generated locally and git-ignored. If modelling reports that the processed CSV
+is missing, finish EDA in this same project checkout first. Run Jupyter from the project root as shown above; notebook
+paths also work when its working directory is `notebooks/`.
 
 ## Repository structure
 
