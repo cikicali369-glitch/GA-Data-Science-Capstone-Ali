@@ -2,7 +2,7 @@
 
 This document records how the project developed, stage by stage, so that the root README and the two final notebooks
 can stay focused. Every number below comes from the saved outputs of the original notebooks. The original notebooks are
-preserved in commit `f29aa8a` (branch `Capstone-part-2`); each link opens the exact version that produced the results.
+preserved in commit `f29aa8a` (archive tag `archive/research-notebooks-01-21`); each link opens the exact version that produced the results.
 
 Regression results (in **days**, MAE / RMSE / R²) and classification results (**ROC-AUC**, precision, recall) measure
 different things and are never compared with each other.
